@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------------------------- #
-# Script to test Urban Management Strategies 
+# Script to test Urban Management Strategies: Presence and Abundances versus Garden Types 
 # Author: [YM, MR]
 # Inputs: 
 #   - Data from uBMS license agreement 
@@ -107,7 +107,7 @@ model_list <- ubmsdata %>%
 summary(model_list[[1]])
 summary(model_list[[2]])
 summary(model_list[[3]])
-sapply(model_list, r.squaredGLMM)
+#sapply(model_list, r.squaredGLMM)
 
 # -----------------------------
 # Plot proportion of presence by Type and Cluster
@@ -153,7 +153,7 @@ model_abund <- glmmTMB(
 summary(model_abund)
 
 # -----------------------------
-# Plot abundance by park type and cluster
+# Plot abundance by space type and cluster
 # -----------------------------
 ggplot(ubms_pos, aes(x = Type, y = SINDEX, fill = Type)) +
   geom_boxplot(outlier.shape = NA) +
@@ -170,3 +170,4 @@ ggplot(ubms_pos, aes(x = Type, y = SINDEX, fill = Type)) +
     legend.position = "none"
   ) +
   labs(x = "Park Type", y = "Abundance")
+
