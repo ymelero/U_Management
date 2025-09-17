@@ -5,7 +5,7 @@
 #   - Data from uBMS license agreement 
 # Outputs:
 #   - XX
-## ---------------------------------------------------------------------------------------------- #
+#  ---------------------------------------------------------------------------------------------- #
 
 library(tidyverse)
 library(dplyr)
@@ -75,8 +75,8 @@ biplot(pca)
 model_list <- ubmsdata %>%
   split(.$Cluster) %>%
   lapply(function(df) {
-    glmmTMB(presence ~ C3.proportion + P.proportion+
-              Herb.proportion + Viv.proportion +
+    glmmTMB(presence ~ C3.proportion*TotalA + P.proportion*TotalA+
+              Herb.proportion*TotalA + Viv.proportion*TotalA + C500+
               (1 | SITE_ID) + (1 | SPECIES),
             data = df, family = binomial)
   })
@@ -90,7 +90,7 @@ r2(model_list[[2]])
 r2(model_list[[1]]) # high sp variabiity
 
 # -----------------------------
-# Plot proportion of presence by Management Type and Cluster
+# Plot proportion of presence by Management Type and Cluster. !!! PLOT TO BE UPDATED
 # -----------------------------
 pred_list <- list(
   C3 = ggpredict(model_list[[1]], terms = "C3.proportion [0:0.4 by=0.001]"),
