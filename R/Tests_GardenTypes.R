@@ -15,11 +15,17 @@ library(glmmTMB)
 library(MuMIn)
 library(corrplot) 
 library(psych)
+library(performance)
+library(tidyverse)
+library(yhat)
 
 # -----------------------------
 # Load and prepare data
 # -----------------------------
-ubmsdata <- read.table("DATA/SINDEX_ZEROS.txt", header = TRUE, sep = "\t")
+#MAYBE SHOUD I USED THE NEW CALCULATED ONES WITH MARTA...!
+ubmsdata <- read.table("DATA/SINDEX_ZEROS.txt", header = TRUE, sep = "\t") # we should use from 2020?
+ubmsdata <- ubmsdata %>%
+  filter(YEAR > 2019)
 space <- read.table("DATA/space_data.txt", header = TRUE, sep = "\t", fill = TRUE)[, -2]
 clusters <- read.csv2("DATA/Species_clusters.csv")
 
@@ -40,7 +46,7 @@ ubmsdata <- ubmsdata %>%
 # -----------------------------
 # Correlation matrix of landscape variables
 # -----------------------------
-p.var <- space[, 4:14]
+p.var <- space[, 5:14]
 M <- corr.test(p.var)
 corrplot(M$r, method = "number", type = "upper", sig.level = c(0.001, 0.01, 0.05), 
          insig = "label_sig", pch.cex = 0.9, pch.col = "grey20", order = "original")
@@ -55,7 +61,7 @@ pca <- prcomp(pca_data, scale. = TRUE)
 biplot(pca)
 
 # -----------------------------
-# Explore area and connectitivy differences by park type
+# Explore area and connectivivy differences by park type
 # -----------------------------
 ggplot(ubmsdata, aes(x = Type, y = TotalA)) +
   geom_boxplot() +
@@ -95,19 +101,40 @@ r.squaredGLMM(model_bin2)
 r.squaredGLMM(model_bin3)
 
 # -----------------------------
-# Models by Cluster - MAYBE BETTER? MR??
+# Models by Cluster - MAYBE BETTER ## for each cluster needs to be reduced? And add the Connectivity
 # -----------------------------
+#model_list <- ubmsdata %>%
+#  split(.$Cluster) %>%
+# lapply(function(df) {
+#   glmmTMB(presence ~ Type * TotalA + (1 | SITE_ID) + (1 | SPECIES),
+#         data = df, family = binomial)
+# })
+
+### PB is that Type and TotalA are very correlated. Pontential solution:
+# model totalA and type and extract residuals: 
+ubmsdata$resid_TotalA <- resid(lm(TotalA ~ Type, data = ubmsdata)) 
+ubmsdata$resid_C500 <- resid(lm(C500 ~ Type, data = ubmsdata)) 
+
+# o con ambas: 
+lm_multi <- lm(cbind(TotalA, C500) ~ Type, data = ubmsdata)
+resid_multi <- residuals(lm_multi)
+
+ubmsdata$resid_TotalA <- resid_multi[,1]
+ubmsdata$resid_C500   <- resid_multi[,2]
+
+#model the residuals for our models
 model_list <- ubmsdata %>%
   split(.$Cluster) %>%
   lapply(function(df) {
-    glmmTMB(presence ~ Type + TotalA + (1 | SITE_ID) + (1 | SPECIES),
-          data = df, family = binomial)
+    glmmTMB(presence ~ Type+resid_TotalA +resid_C500+ (1 | SITE_ID) + (1 | SPECIES),
+            data = df, family = binomial)
   })
 
 summary(model_list[[1]])
 summary(model_list[[2]])
 summary(model_list[[3]])
-#sapply(model_list, r.squaredGLMM)
+
+
 
 # -----------------------------
 # Plot proportion of presence by Type and Cluster
