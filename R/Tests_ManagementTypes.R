@@ -124,11 +124,18 @@ for (i in names(models)) {
 dev.off()
 
 # Model for the response (presence/absence)
-m_resp <- glmmTMB(presence ~ Area + Conn + Type +
-                    C3_grass + P_grass + Herb_grass + V_grass +
-                    (1|SITE_ID),
+m_resp <- glmmTMB(presence ~ Area*Cluster + Conn*Cluster + Type*Cluster +
+                    C3_grass*Cluster + P_grass*Cluster + Herb_grass*Cluster + V_grass*Cluster +
+                    (1|SITE_ID)+(1|YEAR),
                   data = ubmsdata,
                   family = binomial(link = "logit"))
+summary(m_resp )
+
+
+
+
+
+
 
 # Build the SEM_B with covariance between Area and Type
 sem_B <- psem(
