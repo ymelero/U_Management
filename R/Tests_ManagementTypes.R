@@ -123,23 +123,13 @@ for (i in names(models)) {
 }
 dev.off()
 
-<<<<<<< HEAD
-# Model for the response (presence/absence) 
-m_resp <- glmmTMB(presence ~ Area + Conn + Type + C3_beta + P_beta + Viv_beta + Herb_beta + (1|YEAR), # interactions not significant and lower AIC
-=======
 # Model for the response (presence/absence)
 m_resp <- glmmTMB(presence ~ Area*Cluster + Conn*Cluster + Type*Cluster +
                     C3_grass*Cluster + P_grass*Cluster + Herb_grass*Cluster + V_grass*Cluster +
                     (1|SITE_ID)+(1|YEAR),
->>>>>>> 7732b04799f262fb3d025487569b0b0a6f0c0eb4
                   data = ubmsdata,
                   family = binomial(link = "logit"))
 summary(m_resp )
-
-
-
-
-
 
 
 AIC(m_resp); summary(m_resp)
