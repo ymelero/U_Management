@@ -123,12 +123,12 @@ for (i in names(models)) {
 }
 dev.off()
 
-# Model for the response (presence/absence)
-m_resp <- glmmTMB(presence ~ Area + Conn + Type +
-                    C3_grass + P_grass + Herb_grass + V_grass +
-                    (1|SITE_ID),
+# Model for the response (presence/absence) 
+m_resp <- glmmTMB(presence ~ Area + Conn + Type + C3_beta + P_beta + Viv_beta + Herb_beta + (1|YEAR), # interactions not significant and lower AIC
                   data = ubmsdata,
                   family = binomial(link = "logit"))
+
+AIC(m_resp); summary(m_resp)
 
 # Build the SEM_B with covariance between Area and Type
 sem_B <- psem(
@@ -136,32 +136,12 @@ sem_B <- psem(
   Area %~~% Type
 )
 
+
 # SEM outputs
-summary(sem_B)        # coefficients and global Fisher's C test
+summary(sem_B, conserve = TRUE)        # coefficients and global Fisher's C test
 anova(sem_B)          # d-sep tests of implied independencies
 rsquared(sem_B)       # marginal and conditional R² for each submodel
 coefs(sem_B)          # standardized path coefficients
-
-# Check residual diagnostics for the vegetation mediators
-library(DHARMa)
-
-# Simulate residuals for each mediator model
-res_V1 <- simulateResiduals(m_V1)
-res_V2 <- simulateResiduals(m_V2)
-res_V3 <- simulateResiduals(m_V3)
-res_V4 <- simulateResiduals(m_V4)
-
-# Plot residual diagnostics
-plot(res_V1, main = "Residual diagnostics: C3_grass")
-plot(res_V2, main = "Residual diagnostics: P_grass")
-plot(res_V3, main = "Residual diagnostics: Herb_grass")
-plot(res_V4, main = "Residual diagnostics: V_grass")
-
-# Optional: QQ-plots for normality of residuals
-qqnorm(resid(m_V1)); qqline(resid(m_V1))
-qqnorm(resid(m_V2)); qqline(resid(m_V2))
-qqnorm(resid(m_V3)); qqline(resid(m_V3))
-qqnorm(resid(m_V4)); qqline(resid(m_V4))
 
 
 
