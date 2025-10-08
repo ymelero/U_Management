@@ -136,6 +136,7 @@ fit_c3 <- readRDS("Results/Abundance_brms_SEM_Cluster3.rds")
 summary(fit_c2)                          # detailed overview // check Rhat in summary for model fit Rhat ≈ 1.00 → chains have converged well.
 # check R hat for each parameter SHOULD be < 1.05
 range(neff_ratio(fit_c2), na.rm = TRUE)  # Effective sample size ratio
+levels(fit_c2$data$Type)
 
 # ==== 3) Posterior predictive checks ====
 # Includes both zeros and positive abundances (hurdle model)
