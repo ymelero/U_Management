@@ -126,69 +126,27 @@ names(fits) <- cluster_levels
 # Author: [YM]
 # ---------------------------------------------------------------------------------------------- #
 
-# ==== 1) Load models saved ====
+# --- 1. Load models saved 
 fit_c4 <- readRDS("Results/Abundance_brms_SEM_Cluster4.rds")
 fit_c2 <- readRDS("Results/Abundance_brms_SEM_Cluster2.rds")
 fit_c3 <- readRDS("Results/Abundance_brms_SEM_Cluster3.rds")
 
-# ==== 2) Basic diagnostics ====
+# --- 2. Basic diagnostics 
 # Always check Rhat < 1.01 and reasonable neff_ratio
 summary(fit_c2)                          # detailed overview // check Rhat in summary for model fit Rhat ≈ 1.00 → chains have converged well.
 summary(fit_c3)
-# check R hat for each parameter SHOULD be < 1.05
-range(neff_ratio(fit_c2), na.rm = TRUE)  # Effective sample size ratio
-levels(fit_c2$data$Type)
+summary(fit_c4)
+# check in summary for R hat for each parameter SHOULD be < 1.05
+range(neff_ratio(fit_c3), na.rm = TRUE)  # Effective sample size ratio, should be > 0.1 (better if > 0.2).
 
-# ==== 3) Posterior predictive checks ====
+# --- 3. Posterior predictive checks 
 # Includes both zeros and positive abundances (hurdle model)
-pp_check(fit_c2, resp = "abundance")
+pp_check(fit_c3, resp = "abundance") # inclides de hu_ part
 
-# ==== 4) Extract fixed effects ====
-# Positive abundance part (conditional on presence)
-abund_fx_c2 <- as.data.frame(fixef(fit_c2, resp = "abundance"))
-abund_fx_c2[order(abs(abund_fx_c2$Estimate), decreasing = TRUE), ]
-
-# Hurdle (zeros) part: probability of abundance = 0
-hu_fx_c2 <- as.data.frame(fixef(fit_c2, resp = "abundance", dpar = "hu"))
-hu_fx_c2[order(abs(hu_fx_c2$Estimate), decreasing = TRUE), ]
-
-# Mediators (beta regressions)
-c3_fx_c2   <- as.data.frame(fixef(fit_c2, resp = "C3beta"))
-p_fx_c2    <- as.data.frame(fixef(fit_c2, resp = "Pbeta"))
-herb_fx_c2 <- as.data.frame(fixef(fit_c2, resp = "Herbbeta"))
-viv_fx_c2  <- as.data.frame(fixef(fit_c2, resp = "Vivbeta"))
-
-# ==== 5) Predicted probability of zeros ====
-# Estimated hurdle probability per observation
-p_zero_c2 <- fitted(fit_c2, resp = "abundance", dpar = "hu")
-head(p_zero_c2)
-
-# You can merge this with the original data (subset by cluster)
-# ubmsdata_c2 <- subset(ubmsdata, Cluster == levels(ubmsdata$Cluster)[2])
-# ubmsdata_c2$p_zero_est <- p_zero_c2[, "Estimate"]
-
-# ==== 6) Marginal effects for plotting ====
+# --- 4. Marginal effects for plotting 
 # Abundance conditional on presence
 ce_abund_c2 <- conditional_effects(fit_c2, resp = "abundance")
+plot(ce_abund_c2, points = TRUE)
 # Probability of zero (absence process)
 ce_hu_c2    <- conditional_effects(fit_c2, resp = "abundance", dpar = "hu")
-# plot(ce_abund_c2); plot(ce_hu_c2)
-
-# ==== 7) Helper function to extract all effects in one go ====
-extract_all_effects <- function(fit, tag) {
-  out <- list(
-    abundance = as.data.frame(fixef(fit, resp = "abundance")),
-    hu        = as.data.frame(fixef(fit, resp = "abundance", dpar = "hu")),
-    C3beta    = as.data.frame(fixef(fit, resp = "C3beta")),
-    Pbeta     = as.data.frame(fixef(fit, resp = "Pbeta")),
-    Herbbeta  = as.data.frame(fixef(fit, resp = "Herbbeta")),
-    Vivbeta   = as.data.frame(fixef(fit, resp = "Vivbeta"))
-  )
-  # optional: save as CSV for later inspection
-  dir.create("Results/Tables", showWarnings = FALSE)
-  purrr::iwalk(out, ~ write.csv(.x, file = file.path("Results/Tables", paste0(tag, "_", .y, ".csv")), row.names = TRUE))
-  out
-}
-
-# Example run:
-fx_c2 <- extract_all_effects(fit_c2, "Cluster2")
+plot(ce_hu_c2)

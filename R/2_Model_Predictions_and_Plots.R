@@ -2,14 +2,17 @@
 # Back-transform estimates (Estimate, SE, CI) from logit to proportion scale
 # for the Beta submodels (C3, P, Herb, Viv)
 # AND from log / logit scale for abundance and hurdle components
+# Predict (marginal preditions) from SEM models 
 # Author: [YM]
 # ---------------------------------------------------------------------------------------------- #
 
 library(tidyverse)
 library(purrr)
 library(brms)
+detach("package:ggeffects")
+detach("package:gridExtra")
 
-fit_c2 <- readRDS("Results/Abundance_brms_SEM_Cluster2.rds")
+fit_c2 <- readRDS("Results/Abundance_brms_SEM_Cluster4.rds")
 fx_all <- as.data.frame(fixef(fit_c2)) %>% mutate(across(everything(), as.numeric))
 
 # 1. Site variables
@@ -100,9 +103,11 @@ bt_hu    <- extract_backtrans_abundance(fx_all, "hu_abundance", "logit")
 # --- Merge all results into one unified table ---
 bt_all_full <- bind_rows(bt_beta, bt_abund, bt_hu) %>%
   arrange(Mediator, Parameter)
+write.table(bt_all_full, "Results/backtransdormed_C4.txt", sep=";", row.names = F)
 
 # 3. Predict & Plot
 library(ggeffects)
+library(gridExtra)
 
 # --- Function for main responses (Beta and abundance) ---
 get_preds <- function(mediator) {
@@ -172,7 +177,7 @@ p1 <- ggplot(preds_props, aes(x = Type, y = predicted, color = Mediator)) +
   geom_point(position = position_dodge(width = 0.8), size = 2.5) +
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
                 position = position_dodge(width = 0.8), width = 0.25) +
-  labs(x = "Space Type", y = "Predicted proportions") +
+  labs(x = "Space Type", y = "Proportions") +
   scale_color_brewer(palette = "Set2") +
   theme_classic(base_size = 12) +
   theme(
@@ -186,14 +191,14 @@ p1
 preds_hu_plot <- preds_all %>%
   filter(Mediator == "Hurdle (P0)")
 
-p2 <- ggplot(preds_hu_plot, aes(x = Type, y = 1-predicted, color = Mediator)) +
+p2 <- ggplot(preds_hu_plot, aes(x = Type, y = 1-predicted, color = Type)) +
   geom_point(size = 2.5) +
   geom_errorbar(aes(ymin = 1- conf.low, ymax = 1-conf.high), width = 0.25) +
-  labs(x = "Space Type", y = "Probability of zero (hurdle)") +
+  labs(x = "Space Type", y = "Presence") +
   scale_color_brewer(palette = "Set2") +
   theme_classic(base_size = 12) +
-  theme(
-    legend.position = "none",
+  theme(legend.title = element_blank(),
+    legend.position = "top",
     axis.text.x = element_text(size = 11),
     axis.title = element_text(size = 12)
   )
@@ -202,34 +207,19 @@ p2
 preds_abund <- preds_all %>%
   filter(Mediator == "Abundance")
 
-p3 <- ggplot(preds_abund, aes(x = Type, y = predicted, color = Mediator)) +
+p3 <- ggplot(preds_abund, aes(x = Type, y = predicted, color = Type)) +
   geom_point(size = 2.5) +
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.25) +
-  labs(x = "Space Type", y = "Predicted abundance") +
+  labs(x = "Space Type", y = "Abundance") +
   scale_color_brewer(palette = "Set2") +
   theme_classic(base_size = 12) +
-  theme(
-    legend.position = "none",
+  theme(legend.title = element_blank(),
+    legend.position = "top",
     axis.text.x = element_text(size = 11),
     axis.title = element_text(size = 12)
   ) 
 p3 
+grid.arrange(p1, p2,p3, ncol = 3, nrow = 1)
 
-
-# Plot only significant ones??
-# --- Presence (1 - hu) ---
-preds_pres <- preds_all %>%
-  filter(Mediator == "Hurdle (P0)") %>%
-  mutate(predicted = 1 - predicted,
-         conf.low = 1 - conf.high,
-         conf.high = 1 - conf.low)
-p_presence <- ggplot(preds_pres, aes(x = x, y = predicted)) +
-  geom_point(color = "steelblue", size = 2.5) +
-  geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
-                color = "steelblue", width = 0.25) +
-  labs(x = "Predictor (standardized)", y = "Predicted Presence") +
-  theme_classic(base_size = 12) +
-  theme(
-    axis.text.x = element_text(size = 11),
-    axis.title = element_text(size = 12)
-  )
+# Fig caption: Figure X. Mean and ±95% credible intervals from the Bayesian structural equation model for Cluster X. 
+# of green urban space type (Biological, Historical, and Social) on: the proportion of vegetation composition (Proportions), presence probability, and butterfly abundance. 
