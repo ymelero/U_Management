@@ -1,27 +1,38 @@
 # ---------------------------------------------------------------------------------------------- #
 # Script to test Urban Management Strategies: Presence and Abundances versus management types 
-# Author: [YM, MR]
+# Author: [YM]
 # Inputs: 
 #   - Data from uBMS license agreement 
 # Outputs:
 #   - XX
-## ---------------------------------------------------------------------------------------------- #
+#  ---------------------------------------------------------------------------------------------- #
 
 library(tidyverse)
-library(dplyr)
 library(ggplot2)
-library(ggbreak)
 library(glmmTMB)
-library(MuMIn)
 library(corrplot) 
+library(DHARMa)
+library(car)
+library(piecewiseSEM)
+
 library(psych)
 library(ggeffects)
 
 # -----------------------------
 # Load and prepare data
 # -----------------------------
-ubmsdata <- read.table("DATA/SINDEX_ZEROS.txt", header = TRUE, sep = "\t")
-space <- read.table("DATA/space_data.txt", header = TRUE, sep = "\t", fill = TRUE)[, -2]
+ubmsdata <- read.table("DATA/SINDEX_ZEROS.txt", header = TRUE, sep = "\t") %>%
+  filter(YEAR > 2020)%>%
+  mutate(
+    SPECIES = case_when(
+      SPECIES == "Glaucopsyche sp." ~ "Glaucopsyche melanops",
+      SPECIES == "Melanargia sp."   ~ "Melanargia lachesis",
+      TRUE                          ~ SPECIES
+    )
+  )
+# Glaucopsyche sp. => Glaucopsyche melanops
+# Melanargia sp. => Melanargia lachesis
+space <- read.delim("DATA/space_data.txt", sep="\t")
 clusters <- read.csv2("DATA/Species_clusters.csv")
 
 # "Since we are interested in the effect of each strategy, without accounting for the Area occupied by each one 
@@ -32,7 +43,7 @@ space <- space %>%
   mutate(
     C3.proportion = C3ha / TotalA,
     P.proportion = PUha / TotalA,
-    Herb.proportion = HERbha / TotalA,
+    Herb.proportion = pmin(HERbha / TotalA, 1), #bc there is an error
     Viv.proportion = VIVha / TotalA,
   )
 
@@ -40,7 +51,6 @@ ubmsdata <- ubmsdata %>%
   left_join(clusters, by = "SPECIES") %>%
   filter(!is.na(Cluster)) %>%
   left_join(space, by = "SITE_ID") %>%
-  filter(!is.na(C3.proportion)) %>%
   mutate(
     presence = as.numeric(SINDEX > 0),
     Cluster = as.factor(Cluster)
@@ -49,7 +59,9 @@ ubmsdata <- ubmsdata %>%
 # -----------------------------
 # Correlation matrix of landscape variables
 # -----------------------------
-p.var <- space[, c(4:10,25:28)]
+# If total area is included in the SEM, then mathematically the area of vegetation should be in proportions
+# then H would be type of vegetation (not directly the area of which, but also incuded (nested))
+p.var <- space[, c(4:9,24:27)]
 M <- corr.test(p.var)
 corrplot(M$r, method = "number", type = "upper", sig.level = c(0.001, 0.01, 0.05), 
          insig = "label_sig", pch.cex = 0.9, pch.col = "grey20", order = "original")
@@ -57,150 +69,84 @@ corrplot(M$r, p.mat = M$p, type = "upper", sig.level = c(0.001, 0.01, 0.05),
          insig = "label_sig", pch.cex = 0.9, pch.col = "grey", order = "original")
 
 
-# -----------------------------
-# PCA on landscape variables (with mean imputation for NAs)
-# -----------------------------
-pca_data <- p.var %>% mutate(across(everything(), ~ ifelse(is.na(.), mean(., na.rm = TRUE), .)))
-pca <- prcomp(pca_data, scale. = TRUE)
-biplot(pca)
-
-
-# -----------------------------
-# Q3: Effect of management type and cluster on butterfly presence
-# -----------------------------
-
-# -----------------------------
-# Models by Cluster - EASIER TO INTERPRET. MR ok? Accounts for the % of each management type, independent of TotalA.
-# -----------------------------
-model_list <- ubmsdata %>%
-  split(.$Cluster) %>%
-  lapply(function(df) {
-    glmmTMB(presence ~ C3.proportion + P.proportion+
-              Herb.proportion + Viv.proportion +
-              (1 | SITE_ID) + (1 | SPECIES),
-            data = df, family = binomial)
-  })
-
-summary(model_list[[1]])
-summary(model_list[[2]])
-summary(model_list[[3]])
-library(performance) # MUMIN does not work. Why?
-r2(model_list[[1]])
-r2(model_list[[2]]) 
-r2(model_list[[1]]) # high sp variabiity
-
-# -----------------------------
-# Plot proportion of presence by Management Type and Cluster
-# -----------------------------
-pred_list <- list(
-  C3 = ggpredict(model_list[[1]], terms = "C3.proportion [0:0.4 by=0.001]"),
-  P   = ggpredict(model_list[[1]], terms = "P.proportion [0:0.15 by=0.01]"),
-  Herb = ggpredict(model_list[[1]], terms = "Herb.proportion [0:0.15 by=0.01]"),
-  Viv  = ggpredict(model_list[[1]], terms = "Viv.proportion [0:0.4 by=0.01]")
-)
-
-pred_list2 <- list(
-  C3 = ggpredict(model_list[[2]], terms = "C3.proportion [0:0.4 by=0.001]"),
-  P   = ggpredict(model_list[[2]], terms = "P.proportion [0:0.15 by=0.01]"),
-  Herb = ggpredict(model_list[[2]], terms = "Herb.proportion [0:0.15 by=0.01]"),
-  Viv  = ggpredict(model_list[[2]], terms = "Viv.proportion [0:0.4 by=0.01]")
-)
-
-pred_list3 <- list(
-  C3 = ggpredict(model_list[[3]], terms = "C3.proportion [0:0.4 by=0.001]"),
-  P   = ggpredict(model_list[[3]], terms = "P.proportion [0:0.15 by=0.01]"),
-  Herb = ggpredict(model_list[[3]], terms = "Herb.proportion [0:0.15 by=0.01]"),
-  Viv  = ggpredict(model_list[[3]], terms = "Viv.proportion [0:0.4 by=0.01]")
-)
-
-pred_list_to_df <- function(pred_list, cluster_name) {
-  bind_rows(
-    lapply(names(pred_list), function(var) {
-      df <- pred_list[[var]]
-      df$Variable <- var
-      df$Cluster <- cluster_name
-      df
-    })
+ubmsdata <- ubmsdata %>%
+  rename(
+    Area       = TotalA,
+    Conn       = C500,
+    C3_grass   = C3.proportion,
+    P_grass    = P.proportion,
+    Herb_grass = Herb.proportion,
+    V_grass    = Viv.proportion
   )
+
+hist(ubmsdata$C3_grass)
+hist(ubmsdata$P_grass)
+hist(ubmsdata$Herb_grass)
+hist(ubmsdata$V_grass)
+# -----------------------------
+# SEM_B: garden type with covariance with TotalA
+
+# 1. Presence
+# Models for the mediators (vegetation proportions)
+ # Vegetation proportions were modeled with fixed-effects GLMs, as random intercepts did not improve fit and caused convergence problems.
+ # Also no site or year as random, since the proportion of vegetation is part of each site
+ # models m_V1 - m_V4: residuals do not follow a Gaussian distribution, so we applied beta family (logit transformation was not Gaussian either)
+ # We modeled vegetation proportions using a Beta family with a logit link, because these variables are bounded between 0 and 1 and showed deviations from normality under Gaussian models. The Beta distribution is specifically designed for continuous proportions, allowing for flexible shapes (skewed, symmetric, U-shaped) while keeping estimates within the valid range.
+ 
+ubmsdata <- ubmsdata %>% # beta family is  ]0,1[]
+  mutate(
+    C3_beta   = (C3_grass   * (n() - 1) + 0.5) / n(),
+    P_beta    = (P_grass    * (n() - 1) + 0.5) / n(),
+    Herb_beta = (Herb_grass * (n() - 1) + 0.5) / n(),
+    Viv_beta  = (V_grass  * (n() - 1) + 0.5) / n()
+  )
+
+m_V1 <- glmmTMB(C3_beta   ~ Area + Type, data = ubmsdata, family = beta_family())
+m_V2 <- glmmTMB(P_beta    ~ Area + Type, data = ubmsdata, family = beta_family())
+m_V3 <- glmmTMB(Herb_beta ~ Area + Type, data = ubmsdata, family = beta_family())
+m_V4 <- glmmTMB(Viv_beta    ~ Area + Type, data = ubmsdata, family = beta_family())
+
+models <- list(m_V1 = m_V1, m_V2 = m_V2, m_V3 = m_V3, m_V4 = m_V4)
+
+# Summary 
+for (i in names(models)) {
+  cat("\n========================\n")
+  cat("Summary for", i, "\n")
+  print(summary(models[[i]]))
+  cat("========================\n\n")
 }
-
-df1 <- pred_list_to_df(pred_list, "2")
-df2 <- pred_list_to_df(pred_list2, "3")
-df3 <- pred_list_to_df(pred_list3, "4")
-
-predictions_all <- data.frame(bind_rows(df1, df2, df3))
-predictions_all$Cluster <- as.factor(predictions_all$Cluster)
-
-library(ggpubr)
-# TO DO: Mejroar la estética de todos los plots!
-vars <- c("C3.proportion", "P.proportion", "Herb.proportion", "Viv.proportion")
-names(vars) <- c("C3", "P", "Herb", "Viv")
-
-cluster_colors <- c("2" = "#56B4E9", "3" = "#009E73", "4" = "#E69F00")  # azul, verde, naranja pastel
-
-plots_by_cluster <- list()
-
-for (i in seq_along(levels(ubmsdata$Cluster))) {
-  cl <- levels(ubmsdata$Cluster)[i]
-  p_list <- list()
-  
-  for (j in seq_along(names(vars))) {
-    v <- names(vars)[j]
-    
-    pred <- predictions_all[predictions_all$Cluster == cl & predictions_all$Variable == v, ]
-    data_cl <- ubmsdata[ubmsdata$Cluster == cl, ]
-
-    data_cl$presence[data_cl$presence > 1] <- 1
-    data_cl$presence[data_cl$presence < 0] <- 0
-    
-    p <- ggplot() +
-      geom_jitter(data = data_cl, aes_string(x = vars[v],
-                                             y = "jitter(presence, amount = 0.08)"),
-                  color = "lightgrey", alpha = 0.1, size = 0.6, width = 0.02) +
-      geom_ribbon(data = pred, aes(x = x, ymin = conf.low, ymax = conf.high),
-                  fill = cluster_colors[cl], alpha = 0.2) +
-      geom_line(data = pred, aes(x = x, y = predicted),
-                color = cluster_colors[cl], linewidth = 1) +
-      labs(x = if (i == length(levels(ubmsdata$Cluster))) paste(v, "proportion") else NULL,
-           y = if (j == 1) "Presence" else NULL) +
-      coord_cartesian(ylim = c(0, 1)) +
-      theme_minimal(base_size = 12) +
-      theme(panel.grid = element_blank(),
-            axis.title.x = element_text(size = 10),
-            axis.title.y = element_text(size = 10),
-            axis.text.x = if (i == length(levels(ubmsdata$Cluster))) element_text() else element_blank(),
-            axis.text.y = if (j == 1) element_text() else element_blank(),
-            plot.title = element_blank())
-    
-    p_list[[v]] <- p
-  }
-  
-  plots_by_cluster[[cl]] <- ggarrange(plotlist = p_list, ncol = 4)
+# Diagnostics
+pdf("BetaModels_DHARMa_diagnostics.pdf", width = 7, height = 7)
+for (i in names(models)) {
+  res <- simulateResiduals(models[[i]], n = 1000)
+  plot(res, main = paste("Residual diagnostics", i))
 }
+dev.off()
 
-ggarrange(plotlist = plots_by_cluster, ncol = 1)
+# Model for the response (presence/absence)
+m_resp <- glmmTMB(presence ~ Area*Cluster + Conn*Cluster + Type*Cluster +
+                    C3_grass*Cluster + P_grass*Cluster + Herb_grass*Cluster + V_grass*Cluster +
+                    (1|SITE_ID)+(1|YEAR),
+                  data = ubmsdata,
+                  family = binomial(link = "logit"))
+summary(m_resp )
 
-# -----------------------------
-# Q4: Abundance model (only presence cases) - To do same as above once decided (MR, YM)
-# -----------------------------
-ubms_pos <- ubmsdata %>% filter(SINDEX > 0)
 
-model_N <-ubms_pos %>%
-  split(.$Cluster) %>%
-  lapply(function(df) {
-    glmmTMB(SINDEX ~ C3.proportion + P.proportion+
-              Herb.proportion + Viv.proportion + C200 + TotalA +# !! MAYBE ADD AREA FOR ALL MODELS?? APENAS CAMBIA
-              (1 | SITE_ID) + (1 | SPECIES),
-            data = df, family =  Gamma(link = "log"))
-  })
+AIC(m_resp); summary(m_resp)
 
-summary(model_N[[1]])
-summary(model_N[[2]])
-summary(model_N[[3]])
-r2(model_list[[1]])
-r2(model_list[[2]]) 
-r2(model_list[[1]]) # high sp variabiity
+# Build the SEM_B with covariance between Area and Type
+sem_B <- psem(
+  m_V1, m_V2, m_V3, m_V4, m_resp,
+  Area %~~% Type
+)
 
-# -----------------------------
-# Plot abundance by variable and cluster
+
+# SEM outputs
+summary(sem_B, conserve = TRUE)        # coefficients and global Fisher's C test
+anova(sem_B)          # d-sep tests of implied independencies
+rsquared(sem_B)       # marginal and conditional R² for each submodel
+coefs(sem_B)          # standardized path coefficients
+
+
+
 # -----------------------------

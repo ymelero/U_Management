@@ -134,6 +134,7 @@ fit_c3 <- readRDS("Results/Abundance_brms_SEM_Cluster3.rds")
 # ==== 2) Basic diagnostics ====
 # Always check Rhat < 1.01 and reasonable neff_ratio
 summary(fit_c2)                          # detailed overview // check Rhat in summary for model fit Rhat ≈ 1.00 → chains have converged well.
+summary(fit_c3)
 # check R hat for each parameter SHOULD be < 1.05
 range(neff_ratio(fit_c2), na.rm = TRUE)  # Effective sample size ratio
 levels(fit_c2$data$Type)
