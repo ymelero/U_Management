@@ -98,3 +98,22 @@ corrplot(M$r, method = "number", type = "upper", sig.level = c(0.001, 0.01, 0.05
          insig = "label_sig", pch.cex = 0.9, pch.col = "grey20", order = "original")
 corrplot(M$r, p.mat = M$p, type = "upper", sig.level = c(0.001, 0.01, 0.05), 
          insig = "label_sig", pch.cex = 0.9, pch.col = "grey", order = "original", tl.col = "black")
+
+# --- 4. Plot raw presence and abundance per cluster
+# read ubms and cluster data from 1_Model_Bayesian....
+p_abundance <- ggplot(ubmsdata, aes(x = Cluster, y = SINDEX, fill = Cluster)) +
+  geom_boxplot(alpha = 0.6, width = 0.7) +
+  scale_fill_brewer(palette = "Set2") +
+  theme_classic(base_size = 12) +
+  labs(x = "", y = "Presence / Abundance") +
+  theme(legend.position = "none") + 
+  theme(axis.text.x = element_blank(),axis.ticks.x = element_blank())
+
+p_abundance_zoom <- ggplot(ubmsdata, aes(x = Cluster, y = SINDEX, fill = Cluster)) +
+  geom_boxplot(alpha = 0.6, width = 0.7) +
+  scale_fill_brewer(palette = "Set2") +
+  theme_classic(base_size = 12) + ylim(10, 100) +
+  labs(x = "", y = "") +
+  theme(legend.position = "none") 
+
+grid.arrange(p_abundance, p_abundance_zoom, ncol = 1, nrow = 2)

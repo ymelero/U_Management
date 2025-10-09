@@ -137,16 +137,17 @@ summary(fit_c2)                          # detailed overview // check Rhat in su
 summary(fit_c3)
 summary(fit_c4)
 # check in summary for R hat for each parameter SHOULD be < 1.05
-range(neff_ratio(fit_c3), na.rm = TRUE)  # Effective sample size ratio, should be > 0.1 (better if > 0.2).
+range(neff_ratio(fit_c2), na.rm = TRUE)  # Effective sample size ratio, should be > 0.1 (better if > 0.2).
 
 # --- 3. Posterior predictive checks 
 # Includes both zeros and positive abundances (hurdle model)
-pp_check(fit_c3, resp = "abundance") # inclides de hu_ part
+pp_check(fit_c2, resp = "abundance") # inclides de hu_ part
 
 # --- 4. Marginal effects for plotting 
 # Abundance conditional on presence
 ce_abund_c2 <- conditional_effects(fit_c2, resp = "abundance")
 plot(ce_abund_c2, points = TRUE)
+
 # Probability of zero (absence process)
 ce_hu_c2    <- conditional_effects(fit_c2, resp = "abundance", dpar = "hu")
 plot(ce_hu_c2)
