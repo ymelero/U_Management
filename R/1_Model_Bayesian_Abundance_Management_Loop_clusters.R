@@ -151,3 +151,4 @@ plot(ce_abund_c2, points = TRUE)
 # Probability of zero (absence process)
 ce_hu_c2    <- conditional_effects(fit_c2, resp = "abundance", dpar = "hu")
 plot(ce_hu_c2)
+

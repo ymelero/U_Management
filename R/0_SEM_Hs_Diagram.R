@@ -1,3 +1,7 @@
+# SEM Hs Plots
+# Author: [YM]
+# ---------------------------------------------------------------------------------------------- #
+
 library(DiagrammeR)
 
 grViz("
@@ -62,7 +66,7 @@ digraph sem {
 
 
 ## SEM_B with area and garden type with co-variance: 
-grViz("
+g <- grViz("
 digraph SEM_B {
   graph [layout = dot, rankdir = TB]
 
@@ -70,7 +74,7 @@ digraph SEM_B {
         style = rounded]
   edge [color = grey70, penwidth = 0.5, arrowsize = 0.5]
 
-  # Nodos
+  # Nodes
   Area [label = 'Area total', shape = box]
   Conn [label = 'Connectivity (C500)', shape = box]
   Tipo [label = 'Garden type', shape = box]
@@ -82,12 +86,12 @@ digraph SEM_B {
 
   Resp [label = 'Presence / Abundance', shape = box]
 
-  # Rangos
+  # Ranks
   {rank = same; Area; Conn; Tipo}
   {rank = same; V1; V2; V3; V4}
   {rank = same; Resp}
 
-  # Exógenos -> vegetación
+  # Exogens -> vegetation
   Area -> V1
   Area -> V2
   Area -> V3
@@ -98,19 +102,23 @@ digraph SEM_B {
   Tipo -> V3
   Tipo -> V4
 
-  # Vegetación -> respuesta
+  # Vegetation -> response
   V1 -> Resp
   V2 -> Resp
   V3 -> Resp
   V4 -> Resp
 
-  # Directos exógenos -> respuesta
+  # Directos exogens -> response
   Tipo -> Resp
   Area -> Resp
   Conn -> Resp
 
-  # Covarianza entre Area y Tipo
+  # Covariance between Area and Type
   Area -> Tipo [dir=both, arrowhead=none, arrowtail=none, style=dashed, color=grey70]
 }
 ")
 
+library(DiagrammeRsvg)
+library(rsvg)
+svg_code <- export_svg(g)
+rsvg_pdf(charToRaw(svg_code), file = "Results/Figures/SEM_diagrama.pdf")

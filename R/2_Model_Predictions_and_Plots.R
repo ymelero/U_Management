@@ -12,7 +12,7 @@ library(brms)
 detach("package:ggeffects")
 detach("package:gridExtra")
 
-fit_c2 <- readRDS("Results/Abundance_brms_SEM_Cluster4.rds")
+fit_c2 <- readRDS("Results/Abundance_brms_SEM_Cluster2.rds")
 fx_all <- as.data.frame(fixef(fit_c2)) %>% mutate(across(everything(), as.numeric))
 
 # 1. Site variables
@@ -177,7 +177,7 @@ p1 <- ggplot(preds_props, aes(x = Type, y = predicted, color = Mediator)) +
   geom_point(position = position_dodge(width = 0.8), size = 2.5) +
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
                 position = position_dodge(width = 0.8), width = 0.25) +
-  labs(x = "Space Type", y = "Proportions") +
+  labs(x = "Space Type", y = "Vegetation") +
   scale_color_brewer(palette = "Set2") +
   theme_classic(base_size = 12) +
   theme(
@@ -219,7 +219,7 @@ p3 <- ggplot(preds_abund, aes(x = Type, y = predicted, color = Type)) +
     axis.title = element_text(size = 12)
   ) 
 p3 
-grid.arrange(p1, p2,p3, ncol = 3, nrow = 1)
+p_all<-grid.arrange(p1, p2,p3, ncol = 3, nrow = 1)
 
 # Fig caption: Figure X. Mean and ±95% credible intervals from the Bayesian structural equation model for Cluster X. 
 # of green urban space type (Biological, Historical, and Social) on: the proportion of vegetation composition (Proportions), presence probability, and butterfly abundance. 
