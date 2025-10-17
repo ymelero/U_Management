@@ -82,4 +82,14 @@ rao <- dbFD(
   messages  = FALSE
 )
 
-
+fd.df <- tibble(
+  site_year = names(rao$RaoQ),
+  nbsp  = as.numeric(rao$nbsp),
+  sing  = as.numeric(rao$sing.sp),
+  FEve  = as.numeric(rao$FEve),
+  FDis  = as.numeric(rao$FDis),
+  RaoQ  = as.numeric(rao$RaoQ)
+) %>%
+  separate(site_year, into = c("SITE_ID", "YEAR"), sep = "_") %>%
+  mutate(YEAR = as.numeric(YEAR)) %>%
+  relocate(SITE_ID, YEAR)
